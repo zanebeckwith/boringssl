@@ -61,3 +61,8 @@ if (BUILD_TESTING)
   endif()
   add_dependencies(all_tests ssl_test)
 endif()
+
+install(TARGETS ssl 
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)

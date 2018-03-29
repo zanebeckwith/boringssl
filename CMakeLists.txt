@@ -15,6 +15,7 @@ if(WIN32)
   set(CMAKE_GENERATOR_CC cl)
 endif()
 
+include(GNUInstallDirs)
 include(sources.cmake)
 
 enable_language(C)

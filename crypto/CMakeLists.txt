@@ -282,3 +282,8 @@ if (BUILD_TESTING)
   endif()
   add_dependencies(all_tests crypto_test)
 endif()
+
+install(TARGETS crypto 
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
