@@ -20,21 +20,35 @@ include(sources.cmake)
 enable_language(C)
 enable_language(CXX)
 
+option(REGENERATE_ERR_DATA
+        "Don't use existing err_data.c, instead re-generate using Go"
+        OFF)
+
+option(BUILD_TESTING
+        "Build tests"
+        ON)
+
+if(BUILD_TESTING OR REGENERATE_ERR_DATA OR FIPS)
+   set(BORINGSSL_NEED_GO 1)
+endif()
+
 if(ANDROID)
   # Android-NDK CMake files reconfigure the path and so Go and Perl won't be
   # found. However, ninja will still find them in $PATH if we just name them.
   if(NOT PERL_EXECUTABLE)
     set(PERL_EXECUTABLE "perl")
   endif()
-  if(NOT GO_EXECUTABLE)
+  if(BORINGSSL_NEED_GO AND NOT GO_EXECUTABLE)
     set(GO_EXECUTABLE "go")
   endif()
 else()
   find_package(Perl REQUIRED)
-  find_program(GO_EXECUTABLE go)
+  if(BORINGSSL_NEED_GO)
+    find_program(GO_EXECUTABLE go)
+  endif()
 endif()
 
-if (NOT GO_EXECUTABLE)
+if (BORINGSSL_NEED_GO AND NOT GO_EXECUTABLE)
   message(FATAL_ERROR "Could not find Go")
 endif()
 
@@ -342,30 +356,33 @@ if (${ARCH} STREQUAL "x86" AND APPLE AND ${CMAKE_VERSION} VERSION_LESS "3.0")
   set(ARCH "x86_64")
 endif()
 
-# Add minimal googletest targets. The provided one has many side-effects, and
-# googletest has a very straightforward build.
-add_library(boringssl_gtest third_party/googletest/src/gtest-all.cc)
-target_include_directories(boringssl_gtest PRIVATE third_party/googletest)
+if (BUILD_TESTING)
+  # Add minimal googletest targets. The provided one has many side-effects, and
+  # googletest has a very straightforward build.
+  add_library(boringssl_gtest third_party/googletest/src/gtest-all.cc)
+  target_include_directories(boringssl_gtest PRIVATE third_party/googletest)
 
-include_directories(third_party/googletest/include)
+  include_directories(third_party/googletest/include)
 
-# Declare a dummy target to build all unit tests. Test targets should inject
-# themselves as dependencies next to the target definition.
-add_custom_target(all_tests)
+  # Declare a dummy target to build all unit tests. Test targets should inject
+  # themselves as dependencies next to the target definition.
+  add_custom_target(all_tests)
 
-add_custom_command(
-  OUTPUT crypto_test_data.cc
-  COMMAND ${GO_EXECUTABLE} run util/embed_test_data.go ${CRYPTO_TEST_DATA} >
-  ${CMAKE_CURRENT_BINARY_DIR}/crypto_test_data.cc
-  DEPENDS util/embed_test_data.go ${CRYPTO_TEST_DATA}
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-
-add_library(crypto_test_data OBJECT crypto_test_data.cc)
+  add_custom_command(
+    OUTPUT crypto_test_data.cc
+    COMMAND ${GO_EXECUTABLE} run util/embed_test_data.go ${CRYPTO_TEST_DATA} >
+    ${CMAKE_CURRENT_BINARY_DIR}/crypto_test_data.cc
+    DEPENDS util/embed_test_data.go ${CRYPTO_TEST_DATA}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+  
+  add_library(crypto_test_data OBJECT crypto_test_data.cc)
+  
+  add_subdirectory(ssl/test)
+endif()
 
 add_subdirectory(crypto)
 add_subdirectory(third_party/fiat)
 add_subdirectory(ssl)
-add_subdirectory(ssl/test)
 add_subdirectory(fipstools)
 add_subdirectory(tool)
 add_subdirectory(decrepit)
@@ -387,13 +404,15 @@ if (NOT ${CMAKE_VERSION} VERSION_LESS "3.2")
   set(MAYBE_USES_TERMINAL USES_TERMINAL)
 endif()
 
-add_custom_target(
-    run_tests
-    COMMAND ${GO_EXECUTABLE} run util/all_tests.go -build-dir
-            ${CMAKE_BINARY_DIR}
-    COMMAND cd ssl/test/runner &&
-            ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
-              ${RUNNER_ARGS}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS all_tests bssl_shim
-    ${MAYBE_USES_TERMINAL})
+if (BUILD_TESTING)
+  add_custom_target(
+      run_tests
+      COMMAND ${GO_EXECUTABLE} run util/all_tests.go -build-dir
+              ${CMAKE_BINARY_DIR}
+      COMMAND cd ssl/test/runner &&
+              ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
+                ${RUNNER_ARGS}
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      DEPENDS all_tests bssl_shim
+      ${MAYBE_USES_TERMINAL})
+endif()

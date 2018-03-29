@@ -44,18 +44,20 @@ add_library(
 
 target_link_libraries(ssl crypto)
 
-add_executable(
-  ssl_test
-
-  span_test.cc
-  ssl_test.cc
-
-  $<TARGET_OBJECTS:boringssl_gtest_main>
-  $<TARGET_OBJECTS:test_support>
-)
-
-target_link_libraries(ssl_test ssl crypto boringssl_gtest)
-if (WIN32)
-  target_link_libraries(ssl_test ws2_32)
+if (BUILD_TESTING)
+  add_executable(
+    ssl_test
+  
+    span_test.cc
+    ssl_test.cc
+  
+    $<TARGET_OBJECTS:boringssl_gtest_main>
+    $<TARGET_OBJECTS:test_support>
+  )
+  
+  target_link_libraries(ssl_test ssl crypto boringssl_gtest)
+  if (WIN32)
+    target_link_libraries(ssl_test ws2_32)
+  endif()
+  add_dependencies(all_tests ssl_test)
 endif()
-add_dependencies(all_tests ssl_test)

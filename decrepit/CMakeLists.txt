@@ -38,18 +38,20 @@ add_library(
 
 target_link_libraries(decrepit crypto ssl)
 
-add_executable(
-  decrepit_test
-
-  ripemd/ripemd_test.cc
-  cfb/cfb_test.cc
-
-  $<TARGET_OBJECTS:boringssl_gtest_main>
-  $<TARGET_OBJECTS:test_support>
-)
-
-target_link_libraries(decrepit_test crypto decrepit boringssl_gtest)
-if (WIN32)
-  target_link_libraries(decrepit_test ws2_32)
+if (BUILD_TESTING)
+  add_executable(
+    decrepit_test
+  
+    ripemd/ripemd_test.cc
+    cfb/cfb_test.cc
+  
+    $<TARGET_OBJECTS:boringssl_gtest_main>
+    $<TARGET_OBJECTS:test_support>
+  )
+  
+  target_link_libraries(decrepit_test crypto decrepit boringssl_gtest)
+  if (WIN32)
+    target_link_libraries(decrepit_test ws2_32)
+  endif()
+  add_dependencies(all_tests decrepit_test)
 endif()
-add_dependencies(all_tests decrepit_test)
